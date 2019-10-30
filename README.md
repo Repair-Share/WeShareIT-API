@@ -1,2 +1,2 @@
-# WeShareIT
-Web application to manage lending libraries
+# WeShareIT API
+API to manage lending libraries
