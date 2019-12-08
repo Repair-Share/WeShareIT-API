@@ -30,4 +30,9 @@ Run this command in the application directory to run the test suite
 composer test
 ```
 
+Running tests requires sqlite driver to be enabled
+```bash
+sudo apt-get install php-sqlite3 (Ubuntu)
+```
+
 That's it!

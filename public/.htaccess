@@ -1,6 +1,10 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
+  # Use of slim jwt auth requires the addition of this rewrite rule
+  # Otherwise PHP wont have access to Authorization: Bearer header.
+  RewriteRule .* - [env=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
   # Some hosts may require you to use the `RewriteBase` directive.
   # Determine the RewriteBase automatically and set it as environment variable.
   # If you are using Apache aliases to do mass virtual hosting or installed the
@@ -11,7 +15,7 @@
   # the following 2 lines to eliminate the overhead.
   RewriteCond %{REQUEST_URI}::$1 ^(/.+)/(.*)::\2$
   RewriteRule ^(.*) - [E=BASE:%1]
-  
+
   # If the above doesn't work you might need to set the `RewriteBase` directive manually, it should be the
   # absolute physical path to the directory that contains this htaccess file.
   # RewriteBase /
