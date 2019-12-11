@@ -12,6 +12,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use Tuupola\Middleware\HttpBasicAuthentication;
 use Tuupola\Middleware\HttpBasicAuthentication\PdoAuthenticator;
 use Tuupola\Middleware\JwtAuthentication;
+use App\Application\Actions\Token\Token;
 
 return function ($c) {
 //    $c['logger'] = function (ContainerInterface $c) {
@@ -43,10 +44,16 @@ return function ($c) {
         $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
         return $pdo;
     };
+    $c["token"] = function (ContainerInterface $c) {
+        return new Token();
+    };
+    $c["user"] = function (ContainerInterface $c) {
+        return new \App\Model\User();
+    };
     $c[\Tuupola\Middleware\HttpBasicAuthentication::class] = function (ContainerInterface $container) {
         return new HttpBasicAuthentication([
             "path" => "/token",
-            "passthrough" => "/token/guest",
+            "ignore" => "/token/guest",
             "secure" => false,
             "relaxed" => ["admin"],
             "authenticator" => new PdoAuthenticator([
@@ -55,15 +62,15 @@ return function ($c) {
                 "user" => "email",
                 "hash" => "hash"
             ]),
-            "callback" => function (ServerRequestInterface $request, ResponseInterface $response, $arguments) use ($container) {
-                $container["user"] = $arguments["user"];
+            "before" => function (ServerRequestInterface $request, $arguments) use ($container) {
+                $container['user']->email = $arguments['user'];
             }
         ]);
     };
     $c[\Tuupola\Middleware\JwtAuthentication::class] = function (ContainerInterface $container) {
         return new JwtAuthentication([
             "path" => "/",
-            "passthrough" => ["/token", "/welcome", "/upload", "/enrolment", "/payments", "/stats",
+            "ignore" => ["/token", "/welcome", "/upload", "/enrolment", "/payments", "/stats",
                 "/auth/reset", "/auth/verifyemail"],
             "secret" => JWT_SECRET,
             "logger" => $container['logger'],
@@ -81,9 +88,9 @@ return function ($c) {
                     "passthrough" => ["OPTIONS"]
                 ])
             ],
-            "callback" => function (ServerRequestInterface $request, ResponseInterface $response, $arguments) use ($container) {
-                $container->get('logger')->debug("Authentication ok for token: " . json_encode($arguments["decoded"]));
-                $container->get("token")->hydrate($arguments["decoded"]);
+            "before" => function (ServerRequestInterface $request, $arguments) use ($container) {
+                $container['logger']->debug("Authentication ok for token: " . json_encode($arguments["decoded"]));
+                $container["token"]->hydrate($arguments["decoded"]);
             }
         ]);
     };
@@ -92,5 +99,11 @@ return function ($c) {
     };
     $c[\App\Application\Actions\User\ViewUserAction::class] = function (ContainerInterface $container) {
         return new \App\Application\Actions\User\ViewUserAction($container['logger'], $container[\App\Domain\User\UserRepository::class]);
+    };
+    $c[\App\Application\Actions\Token\CreateTokenAction::class] = function (ContainerInterface $container) {
+        return new \App\Application\Actions\Token\CreateTokenAction($container['logger'], $container['token'], $container);
+    };
+    $c[\App\Application\Actions\Token\CreateGuestTokenAction::class] = function (ContainerInterface $container) {
+        return new \App\Application\Actions\Token\CreateGuestTokenAction($container['logger'], $container['token'], $container);
     };
 };
